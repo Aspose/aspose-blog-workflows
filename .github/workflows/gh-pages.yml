@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest #ubuntu-latest
     steps:
       - name: Checkout blog repo
         uses: actions/checkout@main
@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-hugomod-
 
       - name: Build
-        run: hugo --config "config.yml" --minify
+        run: hugo --config "config.yml" --cleanDestinationDir --minify
     
       - name: Deploy Home to S3
         run: hugo deploy --maxDeletes -1 --target "production"
