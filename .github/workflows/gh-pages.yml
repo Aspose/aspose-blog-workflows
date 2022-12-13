@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-hugomod-
 
       - name: Build
-        run: hugo --config "config.yml" #--minify
+        run: hugo --config "config.yml" --minify
     
       - name: Deploy Home to S3
         run: hugo deploy --maxDeletes -1 --target "production"
