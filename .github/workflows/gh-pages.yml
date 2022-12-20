@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout blog repo
         uses: actions/checkout@main
@@ -20,10 +20,10 @@ jobs:
           fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
 
       - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v2
+        uses: peaceiris/actions-hugo@v2.4.13
         with:
-          hugo-version: 'latest'
-          #extended: true
+          hugo-version: '0.101.0'
+          extended: true
           
       - uses: actions/cache@v3
         with:
