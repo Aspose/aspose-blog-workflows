@@ -27,10 +27,12 @@ jobs:
           
       - uses: actions/cache@v3
         with:
-          path: ${TMPDIR}/hugo_cache
-          key: ${{ runner.os }}-hugomod-${{ hashFiles('**/go.sum') }}
+          path: |
+            ~/Library/Caches/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-hugomod-
+            ${{ runner.os }}-go-
 
       - name: Build
         run: hugo --config "config.yml" --cleanDestinationDir --minify
