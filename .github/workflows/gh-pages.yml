@@ -24,16 +24,7 @@ jobs:
         with:
           hugo-version: '0.101.0'
           extended: true
-          
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/Library/Caches/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
+      
       - name: Build
         run: hugo --config "config.yml" --cleanDestinationDir --minify
     
