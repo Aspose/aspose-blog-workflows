@@ -1,2 +1,2 @@
 # Aspose Blog Workflows
-# v4.58
+# v4.59
