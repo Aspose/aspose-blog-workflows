@@ -1,2 +1,2 @@
 # Aspose Blog Workflows
-# v6.18
+# v6.19
