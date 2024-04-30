@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - name: Checkout blog repo
         uses: actions/checkout@main
