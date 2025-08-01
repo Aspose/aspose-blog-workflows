@@ -1,4 +1,4 @@
-name: -x Staging (in-progress) Don't Use this x-
+name: -x- Staging (in-progress) Don't Use this -x
 
 on:
 #   push:
@@ -26,7 +26,7 @@ jobs:
           extended: true
       
       - name: Build
-        run: hugo --config "config.yml,config.staging.yml" --minify #--cleanDestinationDir 
+        run: hugo --config "config.yml,config.staging.yml" --cleanDestinationDir --minify #
         # run: hugo --config "config.yml" --cleanDestinationDir --minify
     
       - name: Deploy Home to S3 - (Staging)
