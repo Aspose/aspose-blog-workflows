@@ -31,7 +31,7 @@ jobs:
         # run: hugo --config "config.yml" --cleanDestinationDir --minify
     
       - name: Deploy Home to S3 - (Staging)
-        run: hugo deploy -1 --config "config.yml,config.staging.yml" --target "staging"
+        run: hugo deploy --config "config.yml,config.staging.yml" --target "staging"
         # run: hugo deploy --maxDeletes -1 --target "production"
 
         env:
