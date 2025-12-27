@@ -1,44 +1,151 @@
 name: Staging
 
 on:
-#   push:
-#     branches:
-#         - main  # Set a branch to deploy
-#     Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  deploy:
+  # -------------------------------------------------
+  # 1) PARALLEL PRODUCT BUILDS
+  # -------------------------------------------------
+  build-products:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        product:
+          - font
+          - finance
+          - # add more later: pdf, words, etc.
+
     steps:
+      # --------------------------------------
+      # Checkout external blog repo
+      # --------------------------------------
       - name: Checkout blog repo
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
         with:
           repository: Aspose/aspose-blog
           ref: master
           token: ${{ secrets.REPO_TOKEN }}
-          #submodules: true  # Fetch Hugo themes (true OR recursive)
-          fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
+          fetch-depth: 0
 
-      - name: Setup Hugo - (Staging)
-        uses: peaceiris/actions-hugo@v2.4.13
+      # --------------------------------------
+      # Setup Hugo
+      # --------------------------------------
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
         with:
           hugo-version: '0.101.0'
           extended: true
-      
-      - name: Build - (Staging)
-        run: hugo --config "config.yml,config.staging.yml" --cleanDestinationDir --minify
-        # run: hugo --config "config.yml" --cleanDestinationDir --minify
-    
-      - name: Deploy Home to S3 - (Staging)
-        run: hugo deploy --maxDeletes -1 --config "config.yml,config.staging.yml" --target "staging"
-        # run: hugo deploy --maxDeletes -1 --target "production"
 
+      # --------------------------------------
+      # Cache Hugo (per product)
+      # --------------------------------------
+      - name: Cache Hugo resources
+        uses: actions/cache@v4
+        with:
+          path: |
+            resources/_gen
+            .hugo_build.lock
+          key: hugo-${{ runner.os }}-${{ matrix.product }}-${{ hashFiles(format('content/**/{0}/**', matrix.product)) }}
+          restore-keys: |
+            hugo-${{ runner.os }}-${{ matrix.product }}-
+            hugo-${{ runner.os }}-
+
+      # --------------------------------------
+      # Build ONE product only
+      # --------------------------------------
+      - name: Build product - ${{ matrix.product }}
+        run: |
+          hugo \
+            --config "config.yml,config.staging.yml" \
+            -b "https://blog-qa.aspose.com/" \
+            --contentDir content \
+            --destination public \
+            --disableKinds sitemap \
+            --minify
+
+      # --------------------------------------
+      # Upload product output
+      # --------------------------------------
+      - name: Upload product artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-${{ matrix.product }}
+          path: public
+
+  # -------------------------------------------------
+  # 2) GLOBAL BUILD + DEPLOY
+  # -------------------------------------------------
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-products
+
+    steps:
+      # --------------------------------------
+      # Checkout repo again
+      # --------------------------------------
+      - name: Checkout blog repo
+        uses: actions/checkout@v4
+        with:
+          repository: Aspose/aspose-blog
+          ref: master
+          token: ${{ secrets.REPO_TOKEN }}
+          fetch-depth: 0
+
+      # --------------------------------------
+      # Setup Hugo
+      # --------------------------------------
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: '0.101.0'
+          extended: true
+
+      # --------------------------------------
+      # Download product artifacts
+      # --------------------------------------
+      - name: Download product artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: merged-public
+
+      # --------------------------------------
+      # Merge product outputs
+      # --------------------------------------
+      - name: Merge product outputs
+        run: |
+          mkdir -p public
+          rsync -a merged-public/*/ public/
+
+      # --------------------------------------
+      # Global build
+      # (search, sitemap, taxonomies, RSS)
+      # --------------------------------------
+      - name: Global build (search + sitemap)
+        run: |
+          hugo \
+            --config "config.yml,config.staging.yml" \
+            -b "https://blog-qa.aspose.com/" \
+            --minify
+
+      # --------------------------------------
+      # Deploy to S3
+      # --------------------------------------
+      - name: Deploy to S3 (Staging)
+        run: |
+          hugo deploy \
+            --maxDeletes -1 \
+            --config "config.yml,config.staging.yml" \
+            --target "staging"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
 
-      - name: Invalidate CloudFront - (Staging)
+      # --------------------------------------
+      # CloudFront Invalidation
+      # --------------------------------------
+      - name: Invalidate CloudFront (Staging)
         uses: chetan/invalidate-cloudfront-action@v2
         env:
           DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}
@@ -46,3 +153,54 @@ jobs:
           AWS_REGION: 'us-west-2'
           AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
+
+
+
+# name: Staging
+
+# on:
+# #   push:
+# #     branches:
+# #         - main  # Set a branch to deploy
+# #     Allows you to run this workflow manually from the Actions tab
+#   workflow_dispatch:
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout blog repo
+#         uses: actions/checkout@main
+#         with:
+#           repository: Aspose/aspose-blog
+#           ref: master
+#           token: ${{ secrets.REPO_TOKEN }}
+#           #submodules: true  # Fetch Hugo themes (true OR recursive)
+#           fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
+
+#       - name: Setup Hugo - (Staging)
+#         uses: peaceiris/actions-hugo@v2.4.13
+#         with:
+#           hugo-version: '0.101.0'
+#           extended: true
+      
+#       - name: Build - (Staging)
+#         run: hugo --config "config.yml,config.staging.yml" --cleanDestinationDir --minify
+#         # run: hugo --config "config.yml" --cleanDestinationDir --minify
+    
+#       - name: Deploy Home to S3 - (Staging)
+#         run: hugo deploy --maxDeletes -1 --config "config.yml,config.staging.yml" --target "staging"
+#         # run: hugo deploy --maxDeletes -1 --target "production"
+
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
+
+#       - name: Invalidate CloudFront - (Staging)
+#         uses: chetan/invalidate-cloudfront-action@v2
+#         env:
+#           DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}
+#           PATHS: '/*'
+#           AWS_REGION: 'us-west-2'
+#           AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
