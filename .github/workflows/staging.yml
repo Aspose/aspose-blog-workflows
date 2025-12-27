@@ -46,7 +46,7 @@ jobs:
           path: |
             resources/_gen
             .hugo_build.lock
-          key: hugo-${{ runner.os }}-${{ matrix.product }}-${{ hashFiles(format('content/**/{0}/**', matrix.product)) }}
+          key: hugo-${{ runner.os }}-${{ matrix.product }}-${{ hashFiles(format('content/Aspose.Blog/{0}/**', matrix.product)) }}
           restore-keys: |
             hugo-${{ runner.os }}-${{ matrix.product }}-
             hugo-${{ runner.os }}-
@@ -55,12 +55,11 @@ jobs:
       # Build ONE product only
       # --------------------------------------
       - name: Build product - ${{ matrix.product }}
-        env:
-          HUGO_PARAMS_PRODUCT: ${{ matrix.product }}
         run: |
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \
+            --contentDir content/Aspose.Blog/${{ matrix.product }} \
             --destination public \
             --disableKinds sitemap \
             --minify
