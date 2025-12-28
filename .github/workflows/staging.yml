@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # =================================================
-  # 1) PARALLEL PRODUCT BUILDS (HTML ONLY)
+  # 1) PARALLEL PRODUCT BUILDS (HTML + IMAGES)
   # =================================================
   build-product:
     runs-on: ubuntu-latest
@@ -67,22 +67,6 @@ jobs:
           hugo-version: '0.120.4'
           extended: true
 
-      # --------------------------------------
-      # Cache Hugo (per product)
-      # --------------------------------------
-      - name: Cache Hugo resources
-        uses: actions/cache@v4
-        with:
-          path: |
-            resources/_gen
-            .hugo_build.lock
-          key: hugo-${{ runner.os }}-${{ matrix.product }}-${{ hashFiles(format('content/Aspose.Blog/{0}/**', matrix.product)) }}
-          restore-keys: |
-            hugo-${{ runner.os }}-${{ matrix.product }}-
-
-      # --------------------------------------
-      # Build ONLY product HTML pages
-      # --------------------------------------
       - name: Build product - ${{ matrix.product }}
         run: |
           hugo \
@@ -91,8 +75,7 @@ jobs:
             --contentDir content/Aspose.Blog/${{ matrix.product }} \
             --destination public \
             --disableKinds sitemap,rss,taxonomy,term \
-            --minify \
-            --gc
+            --minify
 
       # --------------------------------------
       # Upload HTML-only artifact (VERY SMALL)
@@ -101,21 +84,26 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.product }}
-          path: |
-            public/**/*.html
-            public/**/*.json
+          # FIX: We now upload the ENTIRE public folder (HTML + Images)
+          path: public/
 
   # =================================================
-  # 2) GLOBAL MERGE + METADATA + DEPLOY
+  # 2) GLOBAL MERGE + ASSETS + DEPLOY
   # =================================================
   deploy:
     runs-on: ubuntu-latest
     needs: build-product
-
     steps:
       # --------------------------------------
       # Checkout repo again
       # --------------------------------------
+      # MANDATORY: Clearing space so we can fit your ~20GB of artifacts
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+
       - name: Checkout blog repo
         uses: actions/checkout@v4
         with:
@@ -135,7 +123,7 @@ jobs:
       # --------------------------------------
       # Download product artifacts
       # --------------------------------------
-      - name: Download product artifacts
+      - name: Download all product artifacts
         uses: actions/download-artifact@v4
         with:
           path: merged-artifacts
@@ -143,34 +131,37 @@ jobs:
       # --------------------------------------
       # Merge product outputs (disk-safe)
       # --------------------------------------
-      - name: Merge product outputs
+      - name: Merge product outputs (Disk-Efficient)
         run: |
           mkdir -p public
-
+          # Use rsync to move files and delete from source immediately to save space
           for d in merged-artifacts/*; do
-            cp -r "$d"/* public/
-            rm -rf "$d"
+            if [ -d "$d" ]; then
+              echo "Merging $d..."
+              rsync -a --remove-source-files "$d/" public/
+              rm -rf "$d"
+            fi
           done
-
           rm -rf merged-artifacts
 
       # --------------------------------------
       # GLOBAL BUILD (INDEXES ONLY)
       # sitemap.xml, index.json, RSS
       # --------------------------------------
-      - name: Global build (Sitemap + Search + RSS)
+      - name: Global build (Homepage + CSS + Search + Sitemap)
         run: |
+          # We build the Home page (for all 22 languages), CSS, JS, and Search Index.
+          # We disable page/section to avoid re-rendering the 5-hour blog posts.
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \
             --disableKinds page,section \
-            --minify \
-            --gc
+            --minify
 
       # --------------------------------------
       # Deploy to S3 (Staging)
       # --------------------------------------
-      - name: Deploy to S3 (Staging)
+      - name: Deploy to S3
         run: |
           hugo deploy \
             --maxDeletes -1 \
@@ -183,7 +174,7 @@ jobs:
       # --------------------------------------
       # CloudFront Invalidation
       # --------------------------------------
-      - name: Invalidate CloudFront (Staging)
+      - name: Invalidate CloudFront
         uses: chetan/invalidate-cloudfront-action@v2
         env:
           DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}
