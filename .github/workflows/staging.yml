@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  # -------------------------------------------------
-  # 1) PARALLEL PRODUCT BUILDS
-  # -------------------------------------------------
+  # =================================================
+  # 1) PARALLEL PRODUCT BUILDS (HTML ONLY)
+  # =================================================
   build-products:
     runs-on: ubuntu-latest
     strategy:
@@ -18,7 +18,7 @@ jobs:
 
     steps:
       # --------------------------------------
-      # Checkout external blog repo
+      # Checkout blog repo
       # --------------------------------------
       - name: Checkout blog repo
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
             hugo-${{ runner.os }}-
 
       # --------------------------------------
-      # Build ONE product only
+      # Build ONLY product pages (NO global files)
       # --------------------------------------
       - name: Build product - ${{ matrix.product }}
         run: |
@@ -61,11 +61,11 @@ jobs:
             -b "https://blog-qa.aspose.com/" \
             --contentDir content/Aspose.Blog/${{ matrix.product }} \
             --destination public \
-            --disableKinds sitemap \
+            --disableKinds sitemap,rss,taxonomy,term \
             --minify
 
       # --------------------------------------
-      # Upload product output
+      # Upload product artifact
       # --------------------------------------
       - name: Upload product artifact
         uses: actions/upload-artifact@v4
@@ -73,9 +73,9 @@ jobs:
           name: public-${{ matrix.product }}
           path: public
 
-  # -------------------------------------------------
+  # =================================================
   # 2) GLOBAL BUILD + DEPLOY
-  # -------------------------------------------------
+  # =================================================
   deploy:
     runs-on: ubuntu-latest
     needs: build-products
@@ -118,18 +118,18 @@ jobs:
           rsync -a merged-public/*/ public/
 
       # --------------------------------------
-      # Global build
-      # (search, sitemap, taxonomies, RSS)
+      # GLOBAL BUILD (INDEXES ONLY – NO HTML)
       # --------------------------------------
-      - name: Global build (search + sitemap)
+      - name: Global build (sitemap + search + RSS)
         run: |
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \
+            --disableKinds page,section,home \
             --minify
 
       # --------------------------------------
-      # Deploy to S3
+      # Deploy to S3 (Staging)
       # --------------------------------------
       - name: Deploy to S3 (Staging)
         run: |
@@ -154,7 +154,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
 
 
-
+          
 # name: Staging
 
 # on:
