@@ -3,7 +3,7 @@ name: Staging
 on:
   workflow_dispatch:
 
-# Prevents multiple deployments from running at the same time
+# Prevent overlapping deployments
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -81,28 +81,29 @@ jobs:
             hugo-${{ runner.os }}-${{ matrix.product }}-
 
       # --------------------------------------
-      # Build ONLY product pages (NO global files)
+      # Build ONLY product HTML pages
       # --------------------------------------
       - name: Build product - ${{ matrix.product }}
         run: |
-          # We build the specific product sub-folder. 
-          # We disable global kinds to save time and prevent partial sitemaps.
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \
             --contentDir content/Aspose.Blog/${{ matrix.product }} \
             --destination public \
             --disableKinds sitemap,rss,taxonomy,term \
-            --minify
+            --minify \
+            --gc
 
       # --------------------------------------
-      # Upload product artifact
+      # Upload HTML-only artifact (VERY SMALL)
       # --------------------------------------
       - name: Upload product artifact
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.product }}
-          path: public
+          path: |
+            public/**/*.html
+            public/**/*.json
 
   # =================================================
   # 2) GLOBAL MERGE + METADATA + DEPLOY
@@ -134,43 +135,43 @@ jobs:
       # --------------------------------------
       # Download product artifacts
       # --------------------------------------
-      - name: Download all product artifacts
+      - name: Download product artifacts
         uses: actions/download-artifact@v4
         with:
           path: merged-artifacts
-      
+
       # --------------------------------------
-      # Merge product outputs
+      # Merge product outputs (disk-safe)
       # --------------------------------------
       - name: Merge product outputs
         run: |
           mkdir -p public
-          # This copies the content of every artifact folder into the public folder
-          # It preserves the /ar/ and /product/ structures because of your hardcoded URLs
-          find merged-artifacts -maxdepth 2 -mindepth 2 -type d -exec cp -r {}/ public/ \;
-          # Cleanup the downloader folder to keep the workspace clean
+
+          for d in merged-artifacts/*; do
+            cp -r "$d"/* public/
+            rm -rf "$d"
+          done
+
           rm -rf merged-artifacts
 
       # --------------------------------------
-      # GLOBAL BUILD (INDEXES ONLY – NO HTML)
+      # GLOBAL BUILD (INDEXES ONLY)
+      # sitemap.xml, index.json, RSS
       # --------------------------------------
       - name: Global build (Sitemap + Search + RSS)
         run: |
-          # This step scans the ENTIRE content directory to generate a valid 
-          # index.json and sitemap.xml. We do NOT disable 'home'.
-          # We disable 'page' and 'section' to avoid re-rendering HTML that we just merged.
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \
             --disableKinds page,section \
-            --minify
+            --minify \
+            --gc
 
       # --------------------------------------
       # Deploy to S3 (Staging)
       # --------------------------------------
       - name: Deploy to S3 (Staging)
         run: |
-          # Hugo deploy will sync the 'public' folder (merged HTML + global JSON/XML) to S3
           hugo deploy \
             --maxDeletes -1 \
             --config "config.yml,config.staging.yml" \
