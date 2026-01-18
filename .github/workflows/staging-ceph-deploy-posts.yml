@@ -102,7 +102,7 @@ jobs:
           aws s3 sync public/${PRODUCT}/ s3://qa-blog-aspose-com/${PRODUCT}/ \
           --endpoint-url https://s3-qa.dynabic.com \
           --acl public-read \
-          --follow-symlinks
+          --follow-symlinks \
           --size-only
 
           # 4. Sync all translation folders for this product
@@ -111,7 +111,7 @@ jobs:
               aws s3 sync public/${lang}/${PRODUCT}/ s3://qa-blog-aspose-com/${lang}/${PRODUCT}/ \
               --endpoint-url https://s3-qa.dynabic.com \
               --acl public-read \
-              --follow-symlinks
+              --follow-symlinks \
               --size-only
             fi
           done      
