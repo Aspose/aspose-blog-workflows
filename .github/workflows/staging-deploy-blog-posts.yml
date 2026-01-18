@@ -1,4 +1,4 @@
-name: Staging-1. AWS-Deploy Blog Posts
+name: AWS Staging-1. Deploy Blog Posts
 
 on:
   workflow_dispatch:

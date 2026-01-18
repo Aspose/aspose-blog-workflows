@@ -1,4 +1,4 @@
-name: Prod-3. AWS-Deploy Tags
+name: AWS Prod-3. Deploy Tags
 
 on:
   workflow_dispatch: # Manual trigger only

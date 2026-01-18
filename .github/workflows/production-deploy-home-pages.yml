@@ -1,4 +1,4 @@
-name: Prod-2. AWS-Deploy Home Page Assets
+name: AWS Prod-2. Deploy Home Page Assets
 
 on:
   workflow_dispatch: # Run this manually or on a schedule
