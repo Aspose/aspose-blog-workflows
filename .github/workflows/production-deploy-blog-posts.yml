@@ -1,0 +1,119 @@
+name: Production - 1. Deploy Blog Posts - AWS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-product:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        product:
+          - 3d
+          - barcode
+          - cad
+          - cells
+          - diagram
+          - drawing
+          - email
+          - finance
+          - font
+          - gis
+          - html
+          - imaging
+          - medical
+          - note
+          - ocr
+          - omr
+          - page
+          - pdf
+          - psd
+          - pub
+          - slides
+          - svg
+          - tasks
+          - tex
+          - total
+          - words
+          - zip
+    steps:
+      # --------------------------------------
+      # Checkout repo
+      # --------------------------------------
+      - name: Checkout blog repo
+        uses: actions/checkout@v4
+        with:
+          repository: Aspose/aspose-blog
+          ref: main
+          token: ${{ secrets.REPO_TOKEN }}
+          fetch-depth: 0
+
+      # --------------------------------------
+      # Cache Hugo resources (per product)
+      # --------------------------------------
+      - name: Cache Hugo resources
+        uses: actions/cache@v4
+        with:
+          path: |
+            resources/_gen
+            .hugo_build.lock
+          key: hugo-${{ matrix.product }}-${{ hashFiles('config*.yml') }}
+          restore-keys: |
+            hugo-${{ matrix.product }}-
+
+      # --------------------------------------
+      # Setup Hugo
+      # --------------------------------------
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: '0.120.4'
+          extended: true
+
+      # --------------------------------------
+      # Build ONLY this product
+      # --------------------------------------
+      - name: Build & Deploy – ${{ matrix.product }}
+        env:
+          PRODUCT: ${{ matrix.product }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
+        run: |
+          # 1. ISOLATION STEP:
+          # Move all product folders out of content/Aspose.Blog to a temporary location
+          # Then move ONLY the current product back.
+          mkdir ../temp_content
+          mv content/Aspose.Blog/* ../temp_content/
+          mv ../temp_content/${PRODUCT} content/Aspose.Blog/
+
+          # 2. Build the product. 
+          # Now Hugo only sees one product, so it will be lightning fast.
+          hugo \
+            --config "config.yml,config.production.yml" \
+            -b "https://blog.aspose.com/" \
+            --minify
+
+          # 3. Sync the English folder for this product
+          aws s3 sync public/${PRODUCT}/ s3://blog.aspose.com/${PRODUCT}/ --follow-symlinks
+
+          # 4. Sync all translation folders for this product
+          for lang in ar cs de es fa fr he id it ja ko pl pt ru sv th tr uk vi zh zh-hant; do
+            if [ -d "public/${lang}/${PRODUCT}" ]; then
+              aws s3 sync public/${lang}/${PRODUCT}/ s3://blog.aspose.com/${lang}/${PRODUCT}/ --follow-symlinks
+            fi
+          done      
+
+      # --------------------------------------
+      # CloudFront Invalidation (ALL LANGUAGES FOR PRODUCT)
+      # --------------------------------------
+      - name: Invalidate CloudFront – ${{ matrix.product }}
+        uses: chetan/invalidate-cloudfront-action@v2
+        env:
+          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          PATHS: "/${{ matrix.product }}/* /*/${{ matrix.product }}/*"
+          AWS_REGION: us-west-2
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}

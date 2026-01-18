@@ -1,4 +1,4 @@
-name: Production
+name: Deploy Production - AWS
 
 on:
   # push:
@@ -30,7 +30,7 @@ jobs:
         # run: hugo --config "config.yml" --cleanDestinationDir --minify
     
       - name: Deploy Home to S3
-        run: hugo deploy --maxDeletes -1 --config "config.yml,config.production.yml" --target "production"
+        run: hugo deploy --maxDeletes -1 --config "config.yml,config.production.yml" --target "production-aws"
         # run: hugo deploy --maxDeletes -1 --target "production"
 
         env:

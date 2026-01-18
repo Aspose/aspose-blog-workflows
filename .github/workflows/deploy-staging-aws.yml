@@ -189,7 +189,7 @@ jobs:
           hugo deploy \
             --maxDeletes -1 \
             --config "config.yml,config.staging.yml" \
-            --target "staging"
+            --target "staging-aws"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}

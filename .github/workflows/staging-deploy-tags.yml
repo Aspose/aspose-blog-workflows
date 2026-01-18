@@ -1,0 +1,82 @@
+name: Staging - 3. Deploy Tags - AWS
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+jobs:
+  build-tags:
+    runs-on: ubuntu-latest
+    timeout-minutes: 450 # Increased timeout for the massive sync
+    steps:
+      - name: Checkout blog repo
+        uses: actions/checkout@v4
+        with:
+          repository: Aspose/aspose-blog
+          ref: main
+          token: ${{ secrets.REPO_TOKEN }}
+          fetch-depth: 1 # Faster checkout
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: '0.120.4'
+          extended: true
+
+      - name: Maximize Space and RAM
+        run: |
+          # 1. Clear as much disk space as possible
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          
+          # 2. Convert that disk space into 12GB of Virtual RAM
+          sudo fallocate -l 12G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          
+          # 3. Check status
+          free -m
+          df -h
+
+      # 3. VERBOSE MONITOR
+      - name: RAM Monitor
+        run: |
+          while true; do
+            echo "--- RAM Check: $(date +'%H:%M:%S') ---"
+            free -m
+            sleep 60
+          done &
+          
+      - name: Fast Content Preparation (Skeleton)
+        run: |
+            # Strip bodies, otherwise Hugo will OOM (Out of Memory) on tags
+            find content/Aspose.Blog -name "*.md" -print0 | xargs -0 -I {} -P 4 sh -c "awk '/^---/ { count++ } { print } count == 2 { exit }' '{}' > '{}.tmp' && mv '{}.tmp' '{}'"
+            
+            # We don't need images for a Tag Sync, so we delete them to speed up the Hugo build
+            find content/Aspose.Blog -type f ! -name "*.md" -delete
+
+      - name: Build Tags Only
+        run: |
+          hugo \
+            --config "config.yml,config.staging.yml" \
+            -b "https://blog-qa.aspose.com/" \
+            --gc \
+            --logLevel info
+            # Taxonomies are ENABLED by default here
+
+      - name: Deploy Tags (The Long Sync)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
+        run: |
+          echo "Starting massive Tag and Category sync..."
+          # Strategy: Exclude everything first, then include only the taxonomy folders
+          aws s3 sync public/ s3://blog-qa.aspose.com/ \
+            --size-only \
+            --exclude "*" \
+            --include "tag/*" \
+            --include "*/tag/*" \
+            --include "category/*" \
+            --include "*/category/*" \
+            --follow-symlinks

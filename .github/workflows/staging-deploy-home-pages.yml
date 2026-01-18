@@ -1,0 +1,166 @@
+name: Staging - 2. Deploy Home Page Assets - AWS
+
+on:
+  workflow_dispatch: # Run this manually or on a schedule
+
+jobs:
+  build-global:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Checkout blog repo
+        uses: actions/checkout@v4
+        with:
+          repository: Aspose/aspose-blog
+          ref: main
+          token: ${{ secrets.REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: '0.120.4'
+          extended: true
+
+      # 1. FREE DISK & CREATE SWAP (Extends RAM from 7GB to 17GB)
+      - name: Extend Memory with Swap
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -m
+
+      # 2. CACHE HUGO RESOURCES (Speed Boost)
+      - name: Cache Hugo Resources
+        uses: actions/cache@v4
+        with:
+          path: resources
+          key: ${{ runner.os }}-hugo-cache-${{ hashFiles('config.yml', 'config.staging.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-hugo-cache-
+
+      # 3. VERBOSE MONITOR
+      - name: RAM Monitor
+        run: |
+          while true; do
+            echo "--- RAM Check: $(date +'%H:%M:%S') ---"
+            free -m
+            sleep 60
+          done &
+
+      # 4. FAST STRIP (With xargs and Size Check)
+      - name: Fast Content Preparation
+        run: |
+            echo "Initial folder size: $(du -sh content/Aspose.Blog)"
+          
+            # =======================================================
+            # Count
+            # =======================================================
+
+            echo "Counting files..."
+            find content/Aspose.Blog -name "*.md" | wc -l
+            
+            # =======================================================
+            # 1. STRIP BODIES: This logic handles nested YAML and \r\n endings perfectly.
+            # It prints everything from the first line until it sees the second '---'.
+            # =======================================================
+
+            echo "Executing AWK strip on 53k files..."
+            find content/Aspose.Blog -name "*.md" -print0 | xargs -0 -I {} -P 4 sh -c "awk '/^---/ { count++ } { print } count == 2 { exit }' '{}' > '{}.tmp' && mv '{}.tmp' '{}'"
+            
+            # =======================================================
+
+            echo "Folder size after stripping: $(du -sh content/Aspose.Blog)"
+
+            # =======================================================
+            # PURGE - Keeping all .MD and images
+            # =======================================================
+            # echo "Purging all images/non-markdown assets..."
+            # find content/Aspose.Blog -type f ! -name "*.md" -delete
+            
+            # 2. SELECTIVE PURGE: Keep MD and Images, Delete everything else (PDF, ZIP, etc.)
+            echo "Purging heavy non-image assets..."
+            find content/Aspose.Blog -type f ! \( -name "*.md" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) -delete
+            # =======================================================
+          
+            echo "Final folder size: $(du -sh content/Aspose.Blog)"
+
+            # =======================================================
+
+            echo "Checking a random file to see if body exists:"
+            head -n 50 content/Aspose.Blog/note/2025-10-29-extract-text-from-table-in-onenote-using-csharp/index.md
+                      
+            echo "Preparation complete."
+
+      # ---------------------------------------------------------
+      # STEP 5: Memory Optimized Build - (NO MINIFY)
+      # ---------------------------------------------------------
+      - name: Build Skeleton Site
+        env:
+            GOMAXPROCS: 4 # We can use 2 cores now because we have 30GB of Virtual RAM
+        run: |
+          # We use --gc (Garbage Collection) to clear memory during the build
+          hugo \
+            --config "config.yml,config.staging.yml" \
+            -b "https://blog-qa.aspose.com/" \
+            --gc \
+            --logLevel info
+
+      # ---------------------------------------------------------
+      # STEP 6: SURGICAL DEPLOY OF GLOBAL ASSETS
+      # ---------------------------------------------------------
+      - name: Deploy Global Assets (Surgical Sync)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
+        run: |
+          # SYNC EVERYTHING EXCEPT THE PRODUCT FOLDERS
+          # This catches Homepages, Sitemaps, Search Index, RSS, and CSS/JS automatically.
+          
+          # Deploy Global Assets while protecting all 27 Product folders
+            aws s3 sync public/ s3://blog-qa.aspose.com/ \
+            --size-only \
+            --exclude "tag/*" \
+            --exclude "*/tag/*" \
+            --exclude "3d/*" --exclude "*/3d/*" \
+            --exclude "barcode/*" --exclude "*/barcode/*" \
+            --exclude "cad/*" --exclude "*/cad/*" \
+            --exclude "cells/*" --exclude "*/cells/*" \
+            --exclude "diagram/*" --exclude "*/diagram/*" \
+            --exclude "drawing/*" --exclude "*/drawing/*" \
+            --exclude "email/*" --exclude "*/email/*" \
+            --exclude "finance/*" --exclude "*/finance/*" \
+            --exclude "font/*" --exclude "*/font/*" \
+            --exclude "gis/*" --exclude "*/gis/*" \
+            --exclude "html/*" --exclude "*/html/*" \
+            --exclude "imaging/*" --exclude "*/imaging/*" \
+            --exclude "medical/*" --exclude "*/medical/*" \
+            --exclude "note/*" --exclude "*/note/*" \
+            --exclude "ocr/*" --exclude "*/ocr/*" \
+            --exclude "omr/*" --exclude "*/omr/*" \
+            --include "page/*" --include "*/page/*" \
+            --exclude "pdf/*" --exclude "*/pdf/*" \
+            --exclude "psd/*" --exclude "*/psd/*" \
+            --exclude "pub/*" --exclude "*/pub/*" \
+            --exclude "slides/*" --exclude "*/slides/*" \
+            --exclude "svg/*" --exclude "*/svg/*" \
+            --exclude "tasks/*" --exclude "*/tasks/*" \
+            --exclude "tex/*" --exclude "*/tex/*" \
+            --exclude "total/*" --exclude "*/total/*" \
+            --exclude "words/*" --exclude "*/words/*" \
+            --exclude "zip/*" --exclude "*/zip/*" \
+            --follow-symlinks
+      
+      - name: Invalidate CloudFront
+        uses: chetan/invalidate-cloudfront-action@v2
+        env:
+          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}
+          PATHS: |
+            /*
+          AWS_REGION: us-west-2
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
