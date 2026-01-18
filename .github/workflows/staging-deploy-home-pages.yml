@@ -1,4 +1,4 @@
-name: Staging - 2. Deploy Home Page Assets - AWS
+name: Staging-2. AWS-Deploy Home Page Assets
 
 on:
   workflow_dispatch: # Run this manually or on a schedule

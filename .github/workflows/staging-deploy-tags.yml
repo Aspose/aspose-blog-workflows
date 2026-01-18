@@ -1,4 +1,4 @@
-name: Staging - 3. Deploy Tags - AWS
+name: Staging-3. AWS-Deploy Tags
 
 on:
   workflow_dispatch: # Manual trigger only

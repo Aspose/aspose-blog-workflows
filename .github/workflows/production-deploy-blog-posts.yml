@@ -1,4 +1,4 @@
-name: Production - 1. Deploy Blog Posts - AWS
+name: Prod-1. AWS-Deploy Blog Posts
 
 on:
   workflow_dispatch:
