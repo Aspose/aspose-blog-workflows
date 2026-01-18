@@ -99,12 +99,20 @@ jobs:
             --minify
 
           # 3. Sync the English folder for this product
-          aws s3 sync public/${PRODUCT}/ s3://qa-blog-aspose-com/${PRODUCT}/ --follow-symlinks
+          aws s3 sync public/${PRODUCT}/ s3://qa-blog-aspose-com/${PRODUCT}/ \
+          --endpoint-url https://s3-qa.dynabic.com \
+          --acl public-read \
+          --follow-symlinks
+          --size-only
 
           # 4. Sync all translation folders for this product
           for lang in ar cs de es fa fr he id it ja ko pl pt ru sv th tr uk vi zh zh-hant; do
             if [ -d "public/${lang}/${PRODUCT}" ]; then
-              aws s3 sync public/${lang}/${PRODUCT}/ s3://qa-blog-aspose-com/${lang}/${PRODUCT}/ --follow-symlinks
+              aws s3 sync public/${lang}/${PRODUCT}/ s3://qa-blog-aspose-com/${lang}/${PRODUCT}/ \
+              --endpoint-url https://s3-qa.dynabic.com \
+              --acl public-read \
+              --follow-symlinks
+              --size-only
             fi
           done      
 
