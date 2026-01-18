@@ -1,4 +1,4 @@
-name: Staging-1. Ceph-Deploy Blog Posts
+name: Ceph Staging-1. Deploy Blog Posts
 
 on:
   workflow_dispatch:
