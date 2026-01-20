@@ -9,7 +9,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      #max-parallel: 8
+      # max-parallel: 8
       matrix:
         product:
           - 3d
