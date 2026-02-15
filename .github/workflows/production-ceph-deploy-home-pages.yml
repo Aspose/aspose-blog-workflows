@@ -25,13 +25,23 @@ jobs:
       # 1. FREE DISK & CREATE SWAP (Extends RAM from 7GB to 17GB)
       - name: Extend Memory with Swap
         run: |
+          # Deactivate swap if it somehow exists (ignore errors if it doesn't)
+          sudo swapoff /swapfile || true
+          sudo rm -f /swapfile || true
+
+          # Standard cleanup
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+
+          # Create the new swap
+          echo "Allocating 10G swap file..."
           sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
+          
+          echo "Current memory status:"
           free -m
 
       # 2. CACHE HUGO RESOURCES (Speed Boost)

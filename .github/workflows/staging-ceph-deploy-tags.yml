@@ -24,18 +24,23 @@ jobs:
 
       - name: Maximize Space and RAM
         run: |
-          # 1. Clear as much disk space as possible
+          # Deactivate swap if it somehow exists (ignore errors if it doesn't)
+          sudo swapoff /swapfile || true
+          sudo rm -f /swapfile || true
+
+          # Standard cleanup
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-          
-          # 2. Convert that disk space into 12GB of Virtual RAM
-          sudo fallocate -l 12G /swapfile
+
+          # Create the new swap
+          echo "Allocating 10G swap file..."
+          sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
           
-          # 3. Check status
+          echo "Current memory status:"
           free -m
           df -h
 
