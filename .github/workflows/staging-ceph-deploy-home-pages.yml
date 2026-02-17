@@ -78,10 +78,9 @@ jobs:
             # 1. STRIP BODIES: This logic handles nested YAML and \r\n endings perfectly.
             # It prints everything from the first line until it sees the second '---'.
             # =======================================================
-            
-            # This step caused each post to show 0 min read. We will re-evaluate it later. 
-            # echo "Executing AWK strip on 53k files..."
-            # find content/Aspose.Blog -name "*.md" -print0 | xargs -0 -I {} -P 4 sh -c "awk '/^---/ { count++ } { print } count == 2 { exit }' '{}' > '{}.tmp' && mv '{}.tmp' '{}'"
+
+            echo "Executing AWK strip on 53k files..."
+            find content/Aspose.Blog -name "*.md" -print0 | xargs -0 -I {} -P 4 sh -c "awk '/^---/ { count++ } { print } count == 2 { exit }' '{}' > '{}.tmp' && mv '{}.tmp' '{}'"
             
             # =======================================================
 
