@@ -56,7 +56,7 @@ jobs:
       - name: Fast Content Preparation (Skeleton)
         run: |
             # Strip bodies, otherwise Hugo will OOM (Out of Memory) on tags
-            find content/Aspose.Blog -name "*.md" -print0 | xargs -0 -I {} -P 4 sh -c "awk '/^---/ { count++ } { print } count == 2 { exit }' '{}' > '{}.tmp' && mv '{}.tmp' '{}'"
+            # find content/Aspose.Blog -name "*.md" -print0 | xargs -0 -I {} -P 4 sh -c "awk '/^---/ { count++ } { print } count == 2 { exit }' '{}' > '{}.tmp' && mv '{}.tmp' '{}'"
             
             # We don't need images for a Tag Sync, so we delete them to speed up the Hugo build
             find content/Aspose.Blog -type f ! -name "*.md" -delete
