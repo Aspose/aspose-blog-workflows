@@ -1,7 +1,8 @@
 name: Ceph Staging-3. Deploy Tags
 
 on:
-  workflow_dispatch: # Manual trigger only
+  workflow_dispatch: # Manual trigger
+  workflow_call:
 
 jobs:
   build-tags:
