@@ -2,6 +2,7 @@ name: AWS Prod-3. Deploy Tags
 
 on:
   workflow_dispatch: # Manual trigger only
+  workflow_call:
 
 jobs:
   build-tags:
