@@ -1,0 +1,19 @@
+name: AWS Production - Pipeline
+
+on:
+  workflow_dispatch: # So the whole chain can be triggered manually
+
+jobs:
+  job1:
+    uses: ./.github/workflows/production-aws-deploy-blog-posts.yml
+    secrets: inherit # Pass secrets if your sub-workflows need them
+
+  job2:
+    needs: job1
+    uses: ./.github/workflows/production-aws-deploy-home-pages.yml
+    secrets: inherit
+
+  job3:
+    needs: job2
+    uses: ./.github/workflows/production-aws-deploy-tags.yml
+    secrets: inherit
