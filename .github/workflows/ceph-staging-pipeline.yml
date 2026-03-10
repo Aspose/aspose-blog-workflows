@@ -1,6 +1,9 @@
 name: Ceph Staging - Pipeline
 
 on:
+  schedule:
+    - cron: "0 1 * * 1-5" # Runs between 8-9 AM GMT+5 Mon-Fri
+
   workflow_dispatch: # So the whole chain can be triggered manually
 
 jobs:
