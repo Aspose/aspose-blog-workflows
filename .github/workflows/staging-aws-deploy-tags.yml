@@ -84,4 +84,9 @@ jobs:
             --include "*/tag/*" \
             --include "category/*" \
             --include "*/category/*" \
+            --include "categories/*" \
+            --include "*/categories/*" \
+            --include "search/*" \
+            --include "*/search/*" \
+
             --follow-symlinks
