@@ -90,3 +90,12 @@ jobs:
             --include "search/*" \
             --include "*/search/*" \
             --follow-symlinks
+
+      - name: Invalidate CloudFront – Tags, Categories & Search
+        uses: chetan/invalidate-cloudfront-action@v2
+        env:
+          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          PATHS: "/tag/* /*/tag/* /categories/* /*/categories/* /search/* /*/search/*"
+          AWS_REGION: us-west-2
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}            

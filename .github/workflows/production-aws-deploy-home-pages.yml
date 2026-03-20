@@ -137,6 +137,10 @@ jobs:
             --size-only \
             --exclude "tag/*" \
             --exclude "*/tag/*" \
+            --exclude "categories/*" \
+            --exclude "*/categories/*" \
+            --exclude "search/*" \
+            --exclude "*/search/*" \
             --exclude "3d/*" --exclude "*/3d/*" \
             --exclude "barcode/*" --exclude "*/barcode/*" \
             --exclude "cad/*" --exclude "*/cad/*" \
