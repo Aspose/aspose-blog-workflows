@@ -1,5 +1,5 @@
 ## Aspose Blog Workflows   
-# v14.68.
+# v14.69.
 
 ## Translations
 Untranslated blog posts are being gradually translated automatically using [Blogs Translation Agent](https://professionalizeagents.wordpress.com/2025/12/11/blogs-translation-agent-2025-12-10/).
