@@ -155,7 +155,7 @@ jobs:
             --exclude "note/*" --exclude "*/note/*" \
             --exclude "ocr/*" --exclude "*/ocr/*" \
             --exclude "omr/*" --exclude "*/omr/*" \
-            --include "page/*" --include "*/page/*" \
+            --exclude "page/*" --exclude "*/page/*" \
             --exclude "pdf/*" --exclude "*/pdf/*" \
             --exclude "psd/*" --exclude "*/psd/*" \
             --exclude "pub/*" --exclude "*/pub/*" \
