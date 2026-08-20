@@ -24,6 +24,7 @@ jobs:
           - gis
           - html
           - imaging
+          - llm
           - medical
           - note
           - ocr

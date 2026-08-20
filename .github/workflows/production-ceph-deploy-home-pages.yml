@@ -141,6 +141,8 @@ jobs:
             --size-only \
             --exclude "tag/*" \
             --exclude "*/tag/*" \
+            --exclude "search/*" \
+            --exclude "*/search/*" \
             --exclude "3d/*" --exclude "*/3d/*" \
             --exclude "barcode/*" --exclude "*/barcode/*" \
             --exclude "cad/*" --exclude "*/cad/*" \
@@ -153,6 +155,7 @@ jobs:
             --exclude "gis/*" --exclude "*/gis/*" \
             --exclude "html/*" --exclude "*/html/*" \
             --exclude "imaging/*" --exclude "*/imaging/*" \
+            --exclude "llm/*" --exclude "*/llm/*" \
             --exclude "medical/*" --exclude "*/medical/*" \
             --exclude "note/*" --exclude "*/note/*" \
             --exclude "ocr/*" --exclude "*/ocr/*" \
