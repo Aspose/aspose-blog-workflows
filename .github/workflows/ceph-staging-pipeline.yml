@@ -20,3 +20,24 @@ jobs:
     needs: job2
     uses: ./.github/workflows/staging-ceph-deploy-tags.yml
     secrets: inherit
+
+  purge-bunnycdn:
+    needs: job3
+    runs-on: ubuntu-latest
+    steps:
+      # api.dynabic.com/bn/purge is Dynabic's own wrapper in front of BunnyCDN
+      # (same provider as the s3-*.dynabic.com storage endpoints used above),
+      # NOT bunny.net's public purge API directly -- that one is POST
+      # https://api.bunny.net/purge with an `AccessKey` header, which is why
+      # this looks different (GET, X-Api-Key) at a glance. continue-on-error
+      # means a wrong assumption here fails soft (cache just stays warm
+      # longer), never breaks the deploy -- but it also fails *silently*, so
+      # after the first real run, check this step's log: `-i` prints the
+      # response status/headers, confirm it's a 200 and not a 404/401/405.
+      - name: Purge BunnyCDN Cache
+        continue-on-error: true
+        run: |
+          curl -sfiG \
+            -H "X-Api-Key: ${{ secrets.BUNNY_API_KEY }}" \
+            --data-urlencode "url=https://blog-qa.aspose.com" \
+            "https://api.dynabic.com/bn/purge?async=true"
