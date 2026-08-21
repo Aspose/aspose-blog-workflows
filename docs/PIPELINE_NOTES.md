@@ -46,9 +46,9 @@ ignores mtimes and only re-uploads when the byte size actually differs.
 exact same byte size as what's already live (common for uniform, auto-generated pages like
 paginated post listings), the upload is silently skipped and the stale version stays live
 indefinitely. This is what caused the "pagination shows a missing/duplicated post" bug diagnosed
-and fixed in August 2026 (currently applied to `staging-ceph-deploy-home-pages.yml` only — see
-step "Force-Refresh Homepage & Pagination"; not yet replicated to the AWS/production variants,
-pending confirmation it works cleanly on staging first): the fix is **not** to drop `--size-only`
+and fixed in August 2026 (applied to `staging-ceph-deploy-home-pages.yml` and
+`production-aws-deploy-home-pages.yml` — see step "Force-Refresh Homepage & Pagination"; not yet
+replicated to the `production-ceph-*` / `staging-aws-*` variants): the fix is **not** to drop `--size-only`
 — that reintroduces full-site-reupload-every-run — but to add a small, separate, unconditional
 (no `--size-only`) sync scoped *only* to the bounded set of high-churn generated files
 (`index.html`, `index.xml`, `index.json`, `p/*`, per language) that change on every run anyway.
@@ -74,6 +74,6 @@ by URL and walks to the adjacent entries. The generator is deliberately best-eff
 logs errors per-file and overall, always exits 0) since this data is cosmetic — a bug in it must
 never fail an otherwise-good matrix build.
 
-**Status (2026-08-20)**: applied to `staging-ceph-deploy-blog-posts.yml` only, pending
-confirmation before replicating to the AWS/production variants (`production-aws-*`,
-`production-ceph-*`, `staging-aws-*`).
+**Status (2026-08-21)**: applied to `staging-ceph-deploy-blog-posts.yml` and
+`production-aws-deploy-blog-posts.yml`. Not yet replicated to `production-ceph-*` /
+`staging-aws-*` (those aren't wired into either active pipeline currently).

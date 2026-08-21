@@ -168,7 +168,41 @@ jobs:
             --exclude "words/*" --exclude "*/words/*" \
             --exclude "zip/*" --exclude "*/zip/*" \
             --follow-symlinks
-      
+
+      # ---------------------------------------------------------
+      # FORCE-REFRESH HOMEPAGE & PAGINATION (NO SKIP)
+      # ---------------------------------------------------------
+      # --size-only above is required to keep the bulk sync fast (Hugo does
+      # a fresh checkout+build every run, so local mtimes are always "now" --
+      # without --size-only, sync would treat every file as newer than S3
+      # and re-upload the entire site on every run).
+      # But --size-only's flip side: if a rebuilt page happens to land on
+      # the same byte size as what's already live, it's silently skipped
+      # and the old page stays live. The home/pagination feed changes on
+      # every run (a new post shifts every page), so it's exactly the file
+      # most likely to hit that coincidence -- and it's a small, bounded set
+      # of files, so re-uploading it unconditionally here is cheap.
+      - name: Force-Refresh Homepage & Pagination
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
+        run: |
+          sync_home() {
+            aws s3 sync "public/${1}" "s3://blog.aspose.com/${1}" \
+              --follow-symlinks \
+              --exclude "*" \
+              --include "index.html" \
+              --include "index.xml" \
+              --include "index.json" \
+              --include "p/*"
+          }
+          sync_home ""
+          for lang in ar cs de es fa fr he id it ja ko pl pt ru sv th tr uk vi zh zh-hant; do
+            if [ -d "public/${lang}" ]; then
+              sync_home "${lang}/"
+            fi
+          done
+
       - name: Invalidate CloudFront
         uses: chetan/invalidate-cloudfront-action@v2
         env:

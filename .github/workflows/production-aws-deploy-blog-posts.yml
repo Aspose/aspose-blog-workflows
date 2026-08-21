@@ -84,24 +84,30 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS }}
         run: |
-          # 1. ISOLATION STEP:
+          # 1. GLOBAL ORDER SNAPSHOT:
+          # Scan every product's front matter (site-wide, before isolation)
+          # so single-post prev/next links can span the whole blog instead
+          # of only the one product this job is about to build.
+          python3 tools/generate_global_post_order.py
+
+          # 2. ISOLATION STEP:
           # Move all product folders out of content/Aspose.Blog to a temporary location
           # Then move ONLY the current product back.
           mkdir ../temp_content
           mv content/Aspose.Blog/* ../temp_content/
           mv ../temp_content/${PRODUCT} content/Aspose.Blog/
 
-          # 2. Build the product. 
+          # 3. Build the product.
           # Now Hugo only sees one product, so it will be lightning fast.
           hugo \
             --config "config.yml,config.production.yml" \
             -b "https://blog.aspose.com/" \
             --minify
 
-          # 3. Sync the English folder for this product
+          # 4. Sync the English folder for this product
           aws s3 sync public/${PRODUCT}/ s3://blog.aspose.com/${PRODUCT}/ --follow-symlinks
 
-          # 4. Sync all translation folders for this product
+          # 5. Sync all translation folders for this product
           for lang in ar cs de es fa fr he id it ja ko pl pt ru sv th tr uk vi zh zh-hant; do
             if [ -d "public/${lang}/${PRODUCT}" ]; then
               aws s3 sync public/${lang}/${PRODUCT}/ s3://blog.aspose.com/${lang}/${PRODUCT}/ --follow-symlinks
