@@ -83,7 +83,13 @@ nothing new. Manual runs skip that job and always deploy.
 
 `check-changes` finds the newest run of the same pipeline that attempted a deploy (job1 not
 skipped). If that run didn't finish job3 successfully, this run deploys, even with no new commits.
-If it did, this run deploys only when `Aspose/aspose-blog` has commits since that run started.
+If it did, this run deploys only when `Aspose/aspose-blog` has new commits or a new push since that
+run was created.
+
+Two details there are deliberate. The baseline is the run's `created_at`, because re-running a
+failed job moves `run_started_at` forward while job1's deploy stays at the original time. And the
+check also compares the repo's `pushed_at`, because a commit made before the baseline but pushed
+after it has an old date, so the commit list alone misses it.
 
 It can't simply use the last run marked "success", because two kinds of run report success without
 a full deploy:
@@ -101,7 +107,8 @@ job2 and job3 have. If it becomes the new last required stage, update the `job3`
 **Running stages on their own**: the standalone `AWS Prod-2` / `AWS Prod-3` style workflows aren't
 seen by `check-changes`, so the next scheduled run may repeat that work. To retry a failed stage,
 prefer **Re-run failed jobs** on the pipeline run: the check reads a run's latest attempt, so a
-successful retry counts as a complete deploy.
+successful retry counts as a complete deploy. Anything pushed since the run was created still
+triggers the next scheduled run.
 
 ## Memory logging in the home page and tag builds
 

@@ -42,8 +42,10 @@ jobs:
               const attempted = jobs.some((j) => j.name.startsWith('job1') && j.conclusion !== 'skipped');
               if (!attempted) continue;
               const complete = jobs.some((j) => j.name.startsWith('job3') && j.conclusion === 'success');
-              core.info(`Last deploy attempt: ${run.html_url} (started ${run.run_started_at}, complete: ${complete})`);
-              if (complete) core.setOutput('since', run.run_started_at);
+              core.info(`Last deploy attempt: ${run.html_url} (created ${run.created_at}, complete: ${complete})`);
+              // created_at, not run_started_at: re-running a failed job moves
+              // run_started_at forward, but job1 deployed at the original time.
+              if (complete) core.setOutput('since', run.created_at);
               return;
             }
 
@@ -70,9 +72,19 @@ jobs:
               per_page: 1,
             });
 
-            core.info(`Last complete deploy started at: ${since}`);
+            // A commit made before the baseline but pushed after it has an old
+            // date, so the commit list alone misses it. pushed_at counts any
+            // branch, which at worst causes an extra deploy.
+            const { data: contentRepo } = await github.rest.repos.get({
+              owner: 'Aspose',
+              repo: 'aspose-blog',
+            });
+            const pushedSince = new Date(contentRepo.pushed_at) > new Date(since);
+
+            core.info(`Last complete deploy created at: ${since}`);
             core.info(`New commits in Aspose/aspose-blog since then: ${commits.length}`);
-            core.setOutput('should_run', commits.length > 0);
+            core.info(`Last push to Aspose/aspose-blog: ${contentRepo.pushed_at}`);
+            core.setOutput('should_run', commits.length > 0 || pushedSince);
 
   job1:
     needs: check-changes
