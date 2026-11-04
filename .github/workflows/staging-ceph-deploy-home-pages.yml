@@ -54,15 +54,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-hugo-cache-
 
-      # 3. VERBOSE MONITOR
-      - name: RAM Monitor
-        run: |
-          while true; do
-            echo "--- RAM Check: $(date +'%H:%M:%S') ---"
-            free -m
-            sleep 60
-          done &
-
       # 4. FAST STRIP (With xargs and Size Check)
       - name: Fast Content Preparation
         run: |
@@ -114,6 +105,17 @@ jobs:
         env:
             GOMAXPROCS: 4 # We can use 2 cores now because we have 30GB of Virtual RAM
         run: |
+          # Runs inside this step because a background monitor in its own step goes
+          # silent once that step ends, leaving no memory data for a crashed build.
+          while true; do
+            echo "--- RAM Check: $(date +'%H:%M:%S') ---"
+            free -m
+            ps -C hugo -o rss= | awk '{printf "hugo RSS: %d MB\n", $1/1024}'
+            sleep 60
+          done &
+          MONITOR_PID=$!
+          trap 'kill $MONITOR_PID' EXIT
+
           # We use --gc (Garbage Collection) to clear memory during the build
           hugo \
             --config "config.yml,config.staging.yml" \

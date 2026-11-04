@@ -45,15 +45,6 @@ jobs:
           free -m
           df -h
 
-      # 3. VERBOSE MONITOR
-      - name: RAM Monitor
-        run: |
-          while true; do
-            echo "--- RAM Check: $(date +'%H:%M:%S') ---"
-            free -m
-            sleep 60
-          done &
-          
       - name: Fast Content Preparation (Skeleton)
         run: |
             # Strip bodies, otherwise Hugo will OOM (Out of Memory) on tags
@@ -64,6 +55,17 @@ jobs:
 
       - name: Build Tags Only
         run: |
+          # Runs inside this step because a background monitor in its own step goes
+          # silent once that step ends, leaving no memory data for a crashed build.
+          while true; do
+            echo "--- RAM Check: $(date +'%H:%M:%S') ---"
+            free -m
+            ps -C hugo -o rss= | awk '{printf "hugo RSS: %d MB\n", $1/1024}'
+            sleep 60
+          done &
+          MONITOR_PID=$!
+          trap 'kill $MONITOR_PID' EXIT
+
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \
