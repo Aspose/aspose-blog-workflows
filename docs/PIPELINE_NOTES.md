@@ -8,8 +8,8 @@ main README on purpose.
 A single `hugo build` + `hugo deploy` over the whole site (all ~27 products, ~53k content files,
 22 languages) is what conholdate-blog still does in one job, and that pattern is what this repo
 used to do too — but at this site's scale it grew to 5-6 hours per run, against GitHub Actions'
-**hard 6-hour job timeout**. That's why the pipeline (`ceph-staging-pipeline.yml` /
-`aws-production-pipeline.yml`) is split into 3 sequential jobs:
+**hard 6-hour job timeout**. That's why the pipelines (`ceph-staging-pipeline.yml`,
+`ceph-production-pipeline.yml`, `aws-production-pipeline.yml`) are split into 3 sequential jobs:
 
 1. **`*-deploy-blog-posts.yml`** — a 27-way matrix, one job per product. Each matrix job
    physically moves every *other* product's folder out of `content/Aspose.Blog/` before running
@@ -46,9 +46,8 @@ ignores mtimes and only re-uploads when the byte size actually differs.
 exact same byte size as what's already live (common for uniform, auto-generated pages like
 paginated post listings), the upload is silently skipped and the stale version stays live
 indefinitely. This is what caused the "pagination shows a missing/duplicated post" bug diagnosed
-and fixed in August 2026 (applied to `staging-ceph-deploy-home-pages.yml` and
-`production-aws-deploy-home-pages.yml` — see step "Force-Refresh Homepage & Pagination"; not yet
-replicated to the `production-ceph-*` / `staging-aws-*` variants): the fix is **not** to drop `--size-only`
+and fixed in August 2026 (see step "Force-Refresh Homepage & Pagination" in the
+`*-deploy-home-pages.yml` workflows): the fix is **not** to drop `--size-only`
 — that reintroduces full-site-reupload-every-run — but to add a small, separate, unconditional
 (no `--size-only`) sync scoped *only* to the bounded set of high-churn generated files
 (`index.html`, `index.xml`, `index.json`, `p/*`, per language) that change on every run anyway.
@@ -74,6 +73,41 @@ by URL and walks to the adjacent entries. The generator is deliberately best-eff
 logs errors per-file and overall, always exits 0) since this data is cosmetic — a bug in it must
 never fail an otherwise-good matrix build.
 
-**Status (2026-08-21)**: applied to `staging-ceph-deploy-blog-posts.yml` and
-`production-aws-deploy-blog-posts.yml`. Not yet replicated to `production-ceph-*` /
-`staging-aws-*` (those aren't wired into either active pipeline currently).
+**Status (2026-09-09)**: applied to all four `*-deploy-blog-posts.yml` workflows.
+
+## When a scheduled run skips, and why a run's own "success" isn't trusted
+
+Scheduled pipeline runs (`aws-production-pipeline.yml`, `ceph-production-pipeline.yml`,
+`ceph-staging-pipeline.yml`) start with a `check-changes` job, so nothing deploys when there's
+nothing new. Manual runs skip that job and always deploy.
+
+`check-changes` finds the newest run of the same pipeline that attempted a deploy (job1 not
+skipped). If that run didn't finish job3 successfully, this run deploys, even with no new commits.
+If it did, this run deploys only when `Aspose/aspose-blog` has commits since that run started.
+
+It can't simply use the last run marked "success", because two kinds of run report success without
+a full deploy:
+
+- A run that skipped for no changes.
+- Before November 2026, every manual run. Job2 and job3 had no `if`, and GitHub skips a job when
+  anything up its `needs` chain was skipped, which `check-changes` always is on a manual run. So
+  manual runs deployed blog posts only and still reported success. The next scheduled run then
+  treated that as its baseline and could skip, leaving home pages and tags stale.
+
+**If you add a job to a pipeline**, give it an explicit `if` on the previous job's result, like
+job2 and job3 have. If it becomes the new last required stage, update the `job3` check in
+`check-changes` too.
+
+**Running stages on their own**: the standalone `AWS Prod-2` / `AWS Prod-3` style workflows aren't
+seen by `check-changes`, so the next scheduled run may repeat that work. To retry a failed stage,
+prefer **Re-run failed jobs** on the pipeline run: the check reads a run's latest attempt, so a
+successful retry counts as a complete deploy.
+
+## Memory logging in the home page and tag builds
+
+`Build Skeleton Site` and `Build Tags Only` log total memory and Hugo's own usage every 60 seconds
+(`RAM Check` lines). The monitor runs inside the build step on purpose: a background process in its
+own step stops being logged once that step ends, so it can't show what happened during a build.
+
+`--gc` doesn't reduce memory use, despite the comment in the home page workflows: it only removes
+unused cache files after the build.
