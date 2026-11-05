@@ -35,8 +35,8 @@ jobs:
           sudo rm -rf /opt/ghc
 
           # Create the new swap
-          echo "Allocating 10G swap file..."
-          sudo fallocate -l 10G /swapfile
+          echo "Allocating 20G swap file..."
+          sudo fallocate -l 20G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
@@ -54,6 +54,10 @@ jobs:
             find content/Aspose.Blog -type f ! -name "*.md" -delete
 
       - name: Build Tags Only
+        env:
+            # Hugo fills RAM and swap, then the runner dies. 30GiB of the 36GB total
+            # makes Go collect garbage harder before that point instead of crashing.
+            GOMEMLIMIT: 30GiB
         run: |
           # Runs inside this step because a background monitor in its own step goes
           # silent once that step ends, leaving no memory data for a crashed build.

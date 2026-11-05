@@ -117,9 +117,10 @@ triggers the next scheduled run.
 (`RAM Check` lines). The monitor runs inside the build step on purpose: a background process in its
 own step stops being logged once that step ends, so it can't show what happened during a build.
 
-These two builds are the most memory-hungry part of the pipeline. Ceph Staging runs them with 20 GB
-of swap and `GOMEMLIMIT: 30GiB`, which makes Go collect garbage harder as it nears the runner's 36 GB
-of RAM plus swap. The other pipelines still use 10 GB of swap and no limit.
+These two builds are the most memory-hungry part of the pipeline. The three active pipelines run
+them with 20 GB of swap and `GOMEMLIMIT: 30GiB`, which makes Go collect garbage harder as it nears
+the runner's 36 GB of RAM plus swap. The `staging-aws-*` workflows, which no pipeline uses, still
+have 10 GB of swap and no limit.
 
 `--gc` doesn't reduce memory use, despite the comment in the home page workflows: it only removes
 unused cache files after the build.
