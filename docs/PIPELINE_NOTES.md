@@ -21,9 +21,10 @@ used to do too — but at this site's scale it grew to 5-6 hours per run, agains
    to avoid OOM. This produces the homepage, pagination, sitemaps, RSS/JSON feeds, CSS/JS — global
    assets that need every product's front matter but not their prose. It deliberately excludes all
    27 product folders (and tag/search) from its sync so it never overwrites what job 1 deployed.
-3. **`*-deploy-tags.yml`** — same content-stripping approach, builds and syncs only `tag/*` and
-   `category/*` (Hugo taxonomies), which are otherwise the single most expensive part of a full
-   build at this scale.
+3. **`*-deploy-tags.yml`** — same content-stripping approach, syncs only `tag/*` and `search/*`.
+   Taxonomies are otherwise the single most expensive part of a full build at this scale. Despite
+   the step name `Build Tags Only`, it runs the same Hugo command as the home page build, so both
+   stages build the full site, taxonomies included, and differ only in what they upload.
 
 **If you're tempted to "simplify" this back into one job**: don't, without first confirming the
 full-site build time is comfortably under 6 hours. It wasn't, which is the entire reason this
@@ -115,6 +116,10 @@ triggers the next scheduled run.
 `Build Skeleton Site` and `Build Tags Only` log total memory and Hugo's own usage every 60 seconds
 (`RAM Check` lines). The monitor runs inside the build step on purpose: a background process in its
 own step stops being logged once that step ends, so it can't show what happened during a build.
+
+These two builds are the most memory-hungry part of the pipeline. Ceph Staging runs them with 20 GB
+of swap and `GOMEMLIMIT: 30GiB`, which makes Go collect garbage harder as it nears the runner's 36 GB
+of RAM plus swap. The other pipelines still use 10 GB of swap and no limit.
 
 `--gc` doesn't reduce memory use, despite the comment in the home page workflows: it only removes
 unused cache files after the build.
