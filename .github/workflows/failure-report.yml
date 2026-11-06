@@ -13,6 +13,7 @@ on:
 
 permissions:
   actions: read
+  contents: read
 
 jobs:
   report:
@@ -38,12 +39,17 @@ jobs:
             > failure-logs/failed-jobs.tsv
           while IFS=$'\t' read -r id name; do
             file="failure-logs/$(printf '%s' "$name" | tr -c 'A-Za-z0-9._-' '_')-$id.txt"
-            # GitHub may keep no log for a job whose runner died, so record why instead.
-            if ! gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$file" 2> failure-logs/error.tmp; then
-              echo "GitHub returned no log for this job: $(cat failure-logs/error.tmp)" > "$file"
-            fi
-            rm -f failure-logs/error.tmp
+            url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs"
+            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$file" 2> failure-logs/error.tmp && continue
+            # The log endpoint redirects to separate storage, so retry with plain curl,
+            # which drops the GitHub token on that hop. Record only the redirect host:
+            # the full redirect URL carries a temporary access key and this is public.
+            first=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H "Authorization: Bearer $GH_TOKEN" "$url" || true)
+            code=${first%% *}; host=$(printf '%s' "${first#* }" | sed -E 's#^https?://([^/]+).*#\1#')
+            curl -sfL -H "Authorization: Bearer $GH_TOKEN" "$url" > "$file" && continue
+            echo "GitHub returned no log for this job: $(cat failure-logs/error.tmp); direct request: HTTP $code${host:+, redirected to $host}" > "$file"
           done < failure-logs/failed-jobs.tsv
+          rm -f failure-logs/error.tmp
 
       - name: Write memory report
         env:

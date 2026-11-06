@@ -113,6 +113,7 @@ jobs:
     if: ${{ failure() }}
     permissions:
       actions: read
+      contents: read
     uses: ./.github/workflows/failure-report.yml
 
   purge-bunnycdn:
