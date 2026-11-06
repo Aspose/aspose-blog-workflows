@@ -107,3 +107,11 @@ jobs:
     if: ${{ !cancelled() && needs.job2.result == 'success' }}
     uses: ./.github/workflows/production-aws-deploy-tags.yml
     secrets: inherit
+
+  failure-report:
+    needs: [job1, job2, job3]
+    if: ${{ failure() }}
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/failure-report.yml
