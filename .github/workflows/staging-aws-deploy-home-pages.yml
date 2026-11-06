@@ -22,7 +22,7 @@ jobs:
           hugo-version: '0.120.4'
           extended: true
 
-      # 1. FREE DISK & CREATE SWAP (Extends RAM from 7GB to 17GB)
+      # 1. FREE DISK & CREATE SWAP (adds swap on top of the runner's 16GB RAM)
       - name: Extend Memory with Swap
         run: |
           # Deactivate swap if it somehow exists (ignore errors if it doesn't)
@@ -111,9 +111,9 @@ jobs:
       # ---------------------------------------------------------
       - name: Build Skeleton Site
         env:
-            GOMAXPROCS: 4 # We can use 2 cores now because we have 30GB of Virtual RAM
+            GOMAXPROCS: 4 # All 4 of the runner's cores
         run: |
-          # We use --gc (Garbage Collection) to clear memory during the build
+          # --gc only removes unused cache files after the build; it doesn't lower memory use
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \

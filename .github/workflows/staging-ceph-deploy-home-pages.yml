@@ -106,7 +106,7 @@ jobs:
             # Hugo fills RAM and swap, then the runner dies. 30GiB of the 36GB total
             # makes Go collect garbage harder before that point instead of crashing.
             GOMEMLIMIT: 30GiB
-            GOMAXPROCS: 4 # We can use 2 cores now because we have 30GB of Virtual RAM
+            GOMAXPROCS: 4 # All 4 of the runner's cores
         run: |
           # Runs inside this step because a background monitor in its own step goes
           # silent once that step ends, leaving no memory data for a crashed build.
@@ -119,7 +119,7 @@ jobs:
           MONITOR_PID=$!
           trap 'kill $MONITOR_PID' EXIT
 
-          # We use --gc (Garbage Collection) to clear memory during the build
+          # --gc only removes unused cache files after the build; it doesn't lower memory use
           hugo \
             --config "config.yml,config.staging.yml" \
             -b "https://blog-qa.aspose.com/" \

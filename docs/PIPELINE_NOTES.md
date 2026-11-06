@@ -130,5 +130,4 @@ own job on a fresh runner, so it still works when the failed job's runner died. 
 earlier failed run, start `Failure Report` by hand with that run's ID. All three pipelines call it
 automatically.
 
-`--gc` doesn't reduce memory use, despite the comment in the home page workflows: it only removes
-unused cache files after the build.
+`--gc` doesn't reduce memory use: it only removes unused cache files after the build.
