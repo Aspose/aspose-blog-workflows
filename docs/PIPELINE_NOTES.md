@@ -109,7 +109,8 @@ job2 and job3 have. If it becomes the new last required stage, update the `job3`
 seen by `check-changes`, so the next scheduled run may repeat that work. To retry a failed stage,
 prefer **Re-run failed jobs** on the pipeline run: the check reads a run's latest attempt, so a
 successful retry counts as a complete deploy. Anything pushed since the run was created still
-triggers the next scheduled run.
+triggers the next scheduled run. A re-run uses the workflow files from the run's original commit,
+so it doesn't pick up a workflow fix pushed since; start a new run for that.
 
 ## Memory logging in the home page and tag builds
 
