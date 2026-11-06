@@ -108,6 +108,13 @@ jobs:
     uses: ./.github/workflows/staging-ceph-deploy-tags.yml
     secrets: inherit
 
+  failure-report:
+    needs: [job1, job2, job3]
+    if: ${{ failure() }}
+    permissions:
+      actions: read
+    uses: ./.github/workflows/failure-report.yml
+
   purge-bunnycdn:
     needs: job3
     if: ${{ !cancelled() && needs.job3.result == 'success' }}

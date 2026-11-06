@@ -1,0 +1,106 @@
+name: Failure Report
+
+# Called by the pipelines when a stage fails. It runs on a fresh runner, so it
+# still works when the failed job's runner died, which is how memory crashes end.
+# Run it by hand with a run ID to report on an earlier failed run.
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID of the failed pipeline run (the number in its URL after /runs/)"
+        required: true
+
+permissions:
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download failed job logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id || github.run_id }}
+        run: |
+          mkdir -p failure-logs
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | "\(.id)\t\(.name)"' \
+            > failure-logs/failed-jobs.tsv
+          while IFS=$'\t' read -r id name; do
+            file="failure-logs/$(printf '%s' "$name" | tr -c 'A-Za-z0-9._-' '_')-$id.txt"
+            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$file" || echo "Log not available." > "$file"
+          done < failure-logs/failed-jobs.tsv
+
+      - name: Write memory report
+        env:
+          RUN_ID: ${{ inputs.run_id || github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import glob, os, re
+
+          TIMESTAMP = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z ")
+          MEM = re.compile(r"^Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+(\d+)")
+          SWAP = re.compile(r"^Swap:\s+(\d+)\s+(\d+)\s+(\d+)")
+          RSS = re.compile(r"^hugo RSS: (\d+) MB")
+
+          def readings(lines):
+              found = []
+              for i, line in enumerate(lines):
+                  if not line.startswith("--- RAM Check:"):
+                      continue
+                  block = lines[i:i + 5]
+                  r = {"time": line.strip("- ").replace("RAM Check: ", ""), "text": "\n".join(block)}
+                  for b in block[1:]:
+                      if m := MEM.match(b.strip()):
+                          r["ram_total"], r["ram_used"], r["available"] = int(m[1]), int(m[2]), int(m[4])
+                      elif m := SWAP.match(b.strip()):
+                          r["swap_total"], r["swap_used"] = int(m[1]), int(m[2])
+                      elif m := RSS.match(b.strip()):
+                          r["rss"] = int(m[1])
+                  if "swap_used" in r:
+                      found.append(r)
+              return found
+
+          run_id = os.environ["RUN_ID"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          out = [f"## Failure report for [run {run_id}](https://github.com/{repo}/actions/runs/{run_id})", ""]
+          names = dict(line.split("\t", 1) for line in open("failure-logs/failed-jobs.tsv").read().splitlines() if "\t" in line)
+          if not names:
+              out.append("No failed jobs found in this run.")
+
+          for path in sorted(glob.glob("failure-logs/*.txt")):
+              job_id = path.rsplit("-", 1)[-1].removesuffix(".txt")
+              lines = [TIMESTAMP.sub("", l.rstrip("\n")) for l in open(path, errors="replace")]
+              out += [f"### {names.get(job_id, path)}", ""]
+              rs = readings(lines)
+              if rs:
+                  peak = max(rs, key=lambda r: r["swap_used"])
+                  last = rs[-1]
+                  out += [
+                      "| Readings | Peak swap used | Peak Hugo memory | Lowest available RAM | Last reading |",
+                      "|---|---|---|---|---|",
+                      f"| {len(rs)} | {peak['swap_used']:,} of {peak['swap_total']:,} MB at {peak['time']} "
+                      f"| {max(r.get('rss', 0) for r in rs):,} MB | {min(r['available'] for r in rs):,} MB "
+                      f"| {last['time']}: swap {last['swap_used']:,} MB used |",
+                      "",
+                      "<details><summary>Last 3 readings</summary>", "", "```",
+                      *[r["text"] for r in rs[-3:]], "```", "</details>", "",
+                  ]
+              else:
+                  out += ["No memory readings in this job's log.", ""]
+              errors = [l for l in lines if "##[error]" in l or l.startswith("Error:")]
+              out += ["Last error lines:", "", "```", *(errors[-5:] or lines[-5:] or ["(empty log)"]), "```", ""]
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(out) + "\n")
+          PY
+
+      - name: Attach logs to the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-logs-${{ inputs.run_id || github.run_id }}
+          path: failure-logs/
+          retention-days: 14
+          if-no-files-found: ignore

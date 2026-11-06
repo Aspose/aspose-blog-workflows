@@ -122,5 +122,12 @@ them with 20 GB of swap and `GOMEMLIMIT: 30GiB`, which makes Go collect garbage 
 the runner's 36 GB of RAM plus swap. The `staging-aws-*` workflows, which no pipeline uses, still
 have 10 GB of swap and no limit.
 
+When a stage fails, `failure-report.yml` downloads the failed jobs' logs and writes a memory
+summary to the run's summary page: peak swap, peak Hugo memory, lowest available RAM, the last
+readings and the last error lines. It also attaches the logs to the run for 14 days. It runs as its
+own job on a fresh runner, so it still works when the failed job's runner died. To report on an
+earlier failed run, start `Failure Report` by hand with that run's ID. So far only Ceph Staging calls
+it automatically.
+
 `--gc` doesn't reduce memory use, despite the comment in the home page workflows: it only removes
 unused cache files after the build.
