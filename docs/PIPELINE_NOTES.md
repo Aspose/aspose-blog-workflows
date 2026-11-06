@@ -78,9 +78,10 @@ never fail an otherwise-good matrix build.
 
 ## When a scheduled run skips, and why a run's own "success" isn't trusted
 
-Scheduled pipeline runs (`aws-production-pipeline.yml`, `ceph-production-pipeline.yml`,
-`ceph-staging-pipeline.yml`) start with a `check-changes` job, so nothing deploys when there's
-nothing new. Manual runs skip that job and always deploy.
+Scheduled pipeline runs (`aws-production-pipeline.yml`, `ceph-production-pipeline.yml`) start
+with a `check-changes` job, so nothing deploys when there's nothing new. Manual runs skip that job
+and always deploy. `ceph-staging-pipeline.yml` has the same job but its schedule is commented out,
+so staging only deploys when started by hand.
 
 `check-changes` finds the newest run of the same pipeline that attempted a deploy (job1 not
 skipped). If that run didn't finish job3 successfully, this run deploys, even with no new commits.
