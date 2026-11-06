@@ -19,17 +19,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download failed job logs
+        id: download
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.run_id || github.run_id }}
         run: |
           mkdir -p failure-logs
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '"\(.name)\t\(.run_number)"' > failure-logs/run.tsv
+          IFS=$'\t' read -r run_name run_number < failure-logs/run.tsv
+          lower=$(printf '%s' "$run_name" | tr 'A-Z' 'a-z')
+          case "$lower" in *aws*) provider=aws ;; *ceph*) provider=ceph ;; *) provider= ;; esac
+          case "$lower" in *prod*) env=prod ;; *stag*) env=staging ;; *) env= ;; esac
+          if [ -n "$provider" ] && [ -n "$env" ]; then label="$provider-$env"; else label=$(printf '%s' "$lower" | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//'); fi
+          echo "artifact=$label-log-$run_number-$RUN_ID" >> "$GITHUB_OUTPUT"
+
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" \
             --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | "\(.id)\t\(.name)"' \
             > failure-logs/failed-jobs.tsv
           while IFS=$'\t' read -r id name; do
             file="failure-logs/$(printf '%s' "$name" | tr -c 'A-Za-z0-9._-' '_')-$id.txt"
-            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$file" || echo "Log not available." > "$file"
+            # GitHub may keep no log for a job whose runner died, so record why instead.
+            if ! gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$file" 2> failure-logs/error.tmp; then
+              echo "GitHub returned no log for this job: $(cat failure-logs/error.tmp)" > "$file"
+            fi
+            rm -f failure-logs/error.tmp
           done < failure-logs/failed-jobs.tsv
 
       - name: Write memory report
@@ -64,7 +77,8 @@ jobs:
 
           run_id = os.environ["RUN_ID"]
           repo = os.environ["GITHUB_REPOSITORY"]
-          out = [f"## Failure report for [run {run_id}](https://github.com/{repo}/actions/runs/{run_id})", ""]
+          run_name, run_number = open("failure-logs/run.tsv").read().rstrip("\n").split("\t")
+          out = [f"## Failure report: [{run_name} #{run_number}](https://github.com/{repo}/actions/runs/{run_id})", ""]
           names = dict(line.split("\t", 1) for line in open("failure-logs/failed-jobs.tsv").read().splitlines() if "\t" in line)
           if not names:
               out.append("No failed jobs found in this run.")
@@ -100,7 +114,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: failure-logs-${{ inputs.run_id || github.run_id }}
+          name: ${{ steps.download.outputs.artifact || format('failure-logs-{0}', inputs.run_id || github.run_id) }}
           path: failure-logs/
           retention-days: 14
           if-no-files-found: ignore
