@@ -94,9 +94,13 @@ jobs:
               lines = [TIMESTAMP.sub("", l.rstrip("\n")) for l in open(path, errors="replace")]
               out += [f"### {names.get(job_id, path)}", ""]
               rs = readings(lines)
+              name = names.get(job_id, path)
               if rs:
                   peak = max(rs, key=lambda r: r["swap_used"])
                   last = rs[-1]
+                  # A notice annotation is what the platform's CI/CD screen reads,
+                  # since it can't read this summary page.
+                  print(f"::notice title=Peak memory::{name}: peak swap {peak['swap_used']:,} of {peak['swap_total']:,} MB, Hugo {max(r.get('rss', 0) for r in rs):,} MB")
                   out += [
                       "| Readings | Peak swap used | Peak Hugo memory | Lowest available RAM | Last reading |",
                       "|---|---|---|---|---|",
@@ -109,6 +113,8 @@ jobs:
                   ]
               else:
                   out += ["No memory readings in this job's log.", ""]
+                  if lines and lines[0].startswith("GitHub returned no log"):
+                      print(f"::notice title=Peak memory::{name}: no memory readings, GitHub kept no log for this job")
               errors = [l for l in lines if "##[error]" in l or l.startswith("Error:")]
               out += ["Last error lines:", "", "```", *(errors[-5:] or lines[-5:] or ["(empty log)"]), "```", ""]
 
