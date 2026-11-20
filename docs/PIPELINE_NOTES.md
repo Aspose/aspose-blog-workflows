@@ -128,7 +128,11 @@ When a stage fails, `failure-report.yml` downloads the failed jobs' logs and wri
 summary to the run's summary page: peak swap, peak Hugo memory, lowest available RAM, the last
 readings and the last error lines. It also attaches the logs to the run for 14 days. It runs as its
 own job on a fresh runner, so it still works when the failed job's runner died. To report on an
-earlier failed run, start `Failure Report` by hand with that run's ID. All three pipelines call it
+earlier failed run, start `Failure Report` by hand with that run's ID. It also writes one `Peak memory` notice
+annotation per failed job (peak swap and Hugo memory, or that GitHub kept no log). The Blog Agents
+Platform's CI/CD Status screen reads those notices, because it can't read the summary page, so keep
+that title if you change the report. A job whose runner lost connection keeps no log at all, so it
+gets no memory readings. All three pipelines call it
 automatically.
 
 `--gc` doesn't reduce memory use: it only removes unused cache files after the build.
